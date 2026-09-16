@@ -1,0 +1,11 @@
+node_modules
+coverage
+.claude
+.gitnexus
+docs
+AGENTS.md
+CLAUDE.md
+example01--tourbooking
+example02--airbnb
+seeds/phase-1-catalog.json
+postman/*.json

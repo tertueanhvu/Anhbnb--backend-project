@@ -1,0 +1,567 @@
+{
+  "amenities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000101",
+      "code": "WIFI",
+      "name": "Wi-Fi miễn phí",
+      "icon": "wifi"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "code": "POOL",
+      "name": "Hồ bơi",
+      "icon": "pool"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000103",
+      "code": "BREAKFAST",
+      "name": "Bữa sáng",
+      "icon": "breakfast"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000104",
+      "code": "PARKING",
+      "name": "Chỗ đỗ xe",
+      "icon": "parking"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000105",
+      "code": "AIR_CONDITIONING",
+      "name": "Điều hòa",
+      "icon": "air-conditioning"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000106",
+      "code": "KITCHEN",
+      "name": "Bếp",
+      "icon": "kitchen"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000107",
+      "code": "BEACHFRONT",
+      "name": "Gần biển",
+      "icon": "beach"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000108",
+      "code": "WASHER",
+      "name": "Máy giặt",
+      "icon": "washer"
+    }
+  ],
+  "properties": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "slug": "hoan-kiem-riverside-stay",
+      "name": "Hoàn Kiếm Riverside Stay",
+      "description": "Chỗ nghỉ giả lập ở trung tâm Hà Nội, phù hợp để kiểm thử tìm kiếm theo thành phố và nhiều loại phòng.",
+      "address_line": "12 Phố Mây",
+      "ward": "Hàng Bạc",
+      "district": "Hoàn Kiếm",
+      "city": "Hà Nội",
+      "country_code": "VN",
+      "latitude": 21.0333,
+      "longitude": 105.8521,
+      "check_in_time": "14:00:00",
+      "check_out_time": "12:00:00",
+      "status": "ACTIVE",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "slug": "da-nang-beach-haven",
+      "name": "Đà Nẵng Beach Haven",
+      "description": "Khu nghỉ giả lập gần biển, có hồ bơi và nhiều sức chứa để kiểm thử availability theo số lượng phòng.",
+      "address_line": "88 Đường Biển Xanh",
+      "ward": "Mỹ An",
+      "district": "Ngũ Hành Sơn",
+      "city": "Đà Nẵng",
+      "country_code": "VN",
+      "latitude": 16.0471,
+      "longitude": 108.2499,
+      "check_in_time": "14:00:00",
+      "check_out_time": "11:00:00",
+      "status": "ACTIVE",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "slug": "saigon-central-loft",
+      "name": "Saigon Central Loft",
+      "description": "Căn hộ giả lập tại trung tâm Thành phố Hồ Chí Minh, dùng để kiểm thử tiện nghi bếp, máy giặt và phân trang.",
+      "address_line": "25 Đường Ánh Dương",
+      "ward": "Bến Nghé",
+      "district": "Quận 1",
+      "city": "Thành phố Hồ Chí Minh",
+      "country_code": "VN",
+      "latitude": 10.7769,
+      "longitude": 106.7009,
+      "check_in_time": "15:00:00",
+      "check_out_time": "11:00:00",
+      "status": "ACTIVE",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000004",
+      "slug": "da-lat-pine-house",
+      "name": "Đà Lạt Pine House",
+      "description": "Nhà nghỉ giả lập giữa không gian cây xanh, có một loại nguyên căn inventory 1 để kiểm thử tranh chấp phòng cuối.",
+      "address_line": "7 Đường Đồi Thông",
+      "ward": "Phường 3",
+      "district": "Đà Lạt",
+      "city": "Lâm Đồng",
+      "country_code": "VN",
+      "latitude": 11.9404,
+      "longitude": 108.4583,
+      "check_in_time": "14:00:00",
+      "check_out_time": "12:00:00",
+      "status": "ACTIVE",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    }
+  ],
+  "property_images": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "url": "https://images.pexels.com/photos/14379603/pexels-photo-14379603.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Mặt ngoài khách sạn hiện đại có hồ bơi",
+      "sort_order": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000002",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "url": "https://images.pexels.com/photos/8089070/pexels-photo-8089070.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Phòng nghỉ sáng và rộng",
+      "sort_order": 2
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000003",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "url": "https://images.pexels.com/photos/18801080/pexels-photo-18801080/free-photo-of-interior-design-of-a-hotel-room.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Nội thất phòng khách sạn hiện đại",
+      "sort_order": 3
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000004",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "url": "https://images.pexels.com/photos/2586206/pexels-photo-2586206.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Khu nghỉ bên bờ biển lúc hoàng hôn",
+      "sort_order": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "url": "https://images.pexels.com/photos/20898614/pexels-photo-20898614.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Không gian khu nghỉ sát biển",
+      "sort_order": 2
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000006",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "url": "https://images.pexels.com/photos/8047501/pexels-photo-8047501.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Khu nghỉ có hồ bơi và vườn cây",
+      "sort_order": 3
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000007",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "url": "https://images.pexels.com/photos/2347721/pexels-photo-2347721.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Tòa nhà lưu trú có hồ bơi",
+      "sort_order": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000008",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "url": "https://images.pexels.com/photos/37964089/pexels-photo-37964089/free-photo-of-modern-minimalist-hotel-room-interior.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Phòng ngủ tối giản với tông màu ấm",
+      "sort_order": 2
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000009",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "url": "https://images.pexels.com/photos/18801080/pexels-photo-18801080/free-photo-of-interior-design-of-a-hotel-room.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Phòng nghỉ có khu vực sofa",
+      "sort_order": 3
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000010",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "url": "https://images.pexels.com/photos/14036445/pexels-photo-14036445.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Khu nghỉ nhiều cây xanh và mặt nước",
+      "sort_order": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000011",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "url": "https://images.pexels.com/photos/8047501/pexels-photo-8047501.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Khu nhà nghỉ với vườn và hồ bơi",
+      "sort_order": 2
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000012",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "url": "https://images.pexels.com/photos/8089070/pexels-photo-8089070.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "alt_text": "Phòng nghỉ có cửa sổ lớn",
+      "sort_order": 3
+    }
+  ],
+  "property_amenities": [
+    {
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "amenity_id": "00000000-0000-4000-8000-000000000101"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "amenity_id": "00000000-0000-4000-8000-000000000103"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "amenity_id": "00000000-0000-4000-8000-000000000104"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "amenity_id": "00000000-0000-4000-8000-000000000105"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "amenity_id": "00000000-0000-4000-8000-000000000101"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "amenity_id": "00000000-0000-4000-8000-000000000102"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "amenity_id": "00000000-0000-4000-8000-000000000103"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "amenity_id": "00000000-0000-4000-8000-000000000105"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "amenity_id": "00000000-0000-4000-8000-000000000107"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "amenity_id": "00000000-0000-4000-8000-000000000101"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "amenity_id": "00000000-0000-4000-8000-000000000105"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "amenity_id": "00000000-0000-4000-8000-000000000106"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "amenity_id": "00000000-0000-4000-8000-000000000108"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "amenity_id": "00000000-0000-4000-8000-000000000101"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "amenity_id": "00000000-0000-4000-8000-000000000103"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "amenity_id": "00000000-0000-4000-8000-000000000104"
+    },
+    {
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "amenity_id": "00000000-0000-4000-8000-000000000106"
+    }
+  ],
+  "room_types": [
+    {
+      "id": "30000000-0000-4000-8000-000000000001",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "name": "Standard Double",
+      "description": "Một giường đôi, phù hợp hai khách.",
+      "max_guests": 2,
+      "bed_count": 1,
+      "bathroom_count": 1,
+      "base_price": 650000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000002",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "name": "Family Suite",
+      "description": "Phòng gia đình với hai giường và khu vực sinh hoạt nhỏ.",
+      "max_guests": 4,
+      "bed_count": 2,
+      "bathroom_count": 1,
+      "base_price": 1100000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000003",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "name": "Sea View Queen",
+      "description": "Phòng một giường lớn với không gian hướng biển giả lập.",
+      "max_guests": 2,
+      "bed_count": 1,
+      "bathroom_count": 1,
+      "base_price": 850000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000004",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "name": "Beach Family Room",
+      "description": "Phòng gia đình rộng, phù hợp nhóm bốn người.",
+      "max_guests": 4,
+      "bed_count": 2,
+      "bathroom_count": 1,
+      "base_price": 1350000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "name": "City Studio",
+      "description": "Studio trung tâm với bếp nhỏ và máy giặt.",
+      "max_guests": 2,
+      "bed_count": 1,
+      "bathroom_count": 1,
+      "base_price": 700000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000006",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "name": "Two Bedroom Loft",
+      "description": "Căn loft hai phòng ngủ cho gia đình hoặc nhóm nhỏ.",
+      "max_guests": 5,
+      "bed_count": 3,
+      "bathroom_count": 2,
+      "base_price": 1400000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000007",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "name": "Entire Pine House",
+      "description": "Nguyên căn dành cho nhóm sáu người; inventory 1 để test phòng cuối.",
+      "max_guests": 6,
+      "bed_count": 3,
+      "bathroom_count": 2,
+      "base_price": 1800000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000008",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "name": "Garden Double",
+      "description": "Phòng đôi nhìn ra khu vườn giả lập.",
+      "max_guests": 2,
+      "bed_count": 1,
+      "bathroom_count": 1,
+      "base_price": 600000,
+      "currency": "VND",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    }
+  ],
+  "rooms": [
+    {
+      "id": "40000000-0000-4000-8000-000000000001",
+      "room_type_id": "30000000-0000-4000-8000-000000000001",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "room_code": "101",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000002",
+      "room_type_id": "30000000-0000-4000-8000-000000000001",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "room_code": "102",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000003",
+      "room_type_id": "30000000-0000-4000-8000-000000000001",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "room_code": "103",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000004",
+      "room_type_id": "30000000-0000-4000-8000-000000000001",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "room_code": "104",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000005",
+      "room_type_id": "30000000-0000-4000-8000-000000000002",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "room_code": "201",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000006",
+      "room_type_id": "30000000-0000-4000-8000-000000000002",
+      "property_id": "10000000-0000-4000-8000-000000000001",
+      "room_code": "202",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000007",
+      "room_type_id": "30000000-0000-4000-8000-000000000003",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "room_code": "101",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000008",
+      "room_type_id": "30000000-0000-4000-8000-000000000003",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "room_code": "102",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000009",
+      "room_type_id": "30000000-0000-4000-8000-000000000003",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "room_code": "103",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000010",
+      "room_type_id": "30000000-0000-4000-8000-000000000004",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "room_code": "201",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000011",
+      "room_type_id": "30000000-0000-4000-8000-000000000004",
+      "property_id": "10000000-0000-4000-8000-000000000002",
+      "room_code": "202",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000012",
+      "room_type_id": "30000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "101",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000013",
+      "room_type_id": "30000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "102",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000014",
+      "room_type_id": "30000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "103",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000015",
+      "room_type_id": "30000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "104",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000016",
+      "room_type_id": "30000000-0000-4000-8000-000000000005",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "105",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000017",
+      "room_type_id": "30000000-0000-4000-8000-000000000006",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "201",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000018",
+      "room_type_id": "30000000-0000-4000-8000-000000000006",
+      "property_id": "10000000-0000-4000-8000-000000000003",
+      "room_code": "202",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000019",
+      "room_type_id": "30000000-0000-4000-8000-000000000007",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "room_code": "WHOLE-HOUSE",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000020",
+      "room_type_id": "30000000-0000-4000-8000-000000000008",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "room_code": "201",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000021",
+      "room_type_id": "30000000-0000-4000-8000-000000000008",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "room_code": "202",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000022",
+      "room_type_id": "30000000-0000-4000-8000-000000000008",
+      "property_id": "10000000-0000-4000-8000-000000000004",
+      "room_code": "203",
+      "created_at": "2026-09-02T00:00:00.000Z",
+      "updated_at": "2026-09-02T00:00:00.000Z"
+    }
+  ],
+  "availability_window_days": 365
+}

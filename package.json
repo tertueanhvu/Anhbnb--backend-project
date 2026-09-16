@@ -1,0 +1,51 @@
+{
+  "name": "comp3080-hotel-booking-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Phase 1 hotel booking REST API",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "NODE_ENV=test vitest run --globals tests/unit",
+    "test:integration": "NODE_ENV=test vitest run --globals tests/integration --no-file-parallelism",
+    "test:all": "NODE_ENV=test vitest run --globals --no-file-parallelism",
+    "test:newman": "newman run postman/Hotel-Booking.postman_collection.json -e postman/Local.postman_environment.json.example",
+    "db:migrate": "knex migrate:latest",
+    "db:migrate:test": "NODE_ENV=test knex migrate:latest",
+    "db:rollback": "knex migrate:rollback",
+    "db:seed": "knex seed:run",
+    "db:seed:test": "NODE_ENV=test knex seed:run",
+    "db:check": "node scripts/check-database.js",
+    "db:reset:test": "node scripts/reset-test-database.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "pg": "^8.16.3",
+    "pino": "^9.9.4",
+    "pino-http": "^10.5.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "newman": "^6.2.1",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "vitest": "^4.1.11"
+  }
+}

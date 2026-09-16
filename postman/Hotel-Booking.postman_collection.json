@@ -1,0 +1,172 @@
+{
+  "info": {
+    "_postman_id": "54238bcc-f84f-4e86-84bc-f52d1fd69884",
+    "name": "Hotel Booking Phase 1",
+    "description": "Flow local không chứa secret. Chạy server và seed database trước khi chạy collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('runId')) {",
+          "  const runId = String(Date.now());",
+          "  const datePlus = (days) => { const date = new Date(); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); };",
+          "  pm.environment.set('runId', runId);",
+          "  pm.environment.set('email', `postman-${runId}@example.com`);",
+          "  pm.environment.set('checkIn', datePlus(30));",
+          "  pm.environment.set('checkOut', datePlus(32));",
+          "  pm.environment.set('outsideCheckIn', datePlus(364));",
+          "  pm.environment.set('outsideCheckOut', datePlus(366));",
+          "  pm.environment.set('idempotencyKey', `postman-${runId}`);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "auth": { "type": "noauth" },
+  "item": [
+    {
+      "name": "1. Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health/live" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 and JSON', () => { pm.response.to.have.status(200); pm.response.to.be.json; });"] } }]
+        },
+        {
+          "name": "Readiness",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health/ready" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('database ready', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('ready'); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "2. Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"StrongPass1!\",\n  \"fullName\": \"Postman Guest\",\n  \"phone\": \"0901234567\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('registered', () => pm.response.to.have.status(201));", "const body = pm.response.json().data;", "pm.environment.set('accessToken', body.accessToken);", "pm.environment.set('userId', body.user.id);", "pm.test('password hash hidden', () => pm.expect(JSON.stringify(body.user)).not.to.include('password_hash'));" ] } }]
+        },
+        {
+          "name": "Current user",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }], "url": "{{baseUrl}}/api/v1/users/me" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('current owner', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('userId')); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "3. Properties",
+      "item": [
+        {
+          "name": "List and select first room type",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/properties?sort=price_asc" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('catalog returned', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.length).to.be.above(0); });", "const property = pm.response.json().data[0];", "pm.environment.set('propertyId', property.id);", "pm.environment.set('roomTypeId', property.roomTypes[0].id);" ] } }]
+        },
+        {
+          "name": "Property detail",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/properties/{{propertyId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('detail returned', () => pm.response.to.have.status(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "4. Availability",
+      "item": [
+        {
+          "name": "Whole-stay quote",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/properties/{{propertyId}}/room-types/{{roomTypeId}}/availability?checkIn={{checkIn}}&checkOut={{checkOut}}&roomQuantity=1&adults=2&children=0" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('bookable whole stay', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.available).to.eql(true); });"] } }]
+        },
+        {
+          "name": "Outside generated calendar",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/properties/{{propertyId}}/room-types/{{roomTypeId}}/availability?checkIn={{outsideCheckIn}}&checkOut={{outsideCheckOut}}&roomQuantity=1&adults=1&children=0" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('calendar boundary rejected', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().error.code).to.eql('STAY_OUTSIDE_CALENDAR'); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "5. Cart",
+      "item": [
+        {
+          "name": "Add cart item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"roomTypeId\": \"{{roomTypeId}}\",\n  \"checkIn\": \"{{checkIn}}\",\n  \"checkOut\": \"{{checkOut}}\",\n  \"roomQuantity\": 1,\n  \"adults\": 2,\n  \"children\": 0\n}" },
+            "url": "{{baseUrl}}/api/v1/cart/items"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('item added', () => pm.response.to.have.status(201));", "pm.environment.set('cartItemId', pm.response.json().data.id);" ] } }]
+        },
+        {
+          "name": "Read cart",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/v1/cart" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('cart is owner scoped', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.items.length).to.be.above(0); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "6. Bookings",
+      "item": [
+        {
+          "name": "Checkout selected cart item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"cartItemId\": \"{{cartItemId}}\",\n  \"contact\": {\n    \"fullName\": \"Postman Guest\",\n    \"email\": \"{{email}}\",\n    \"phone\": \"0901234567\"\n  },\n  \"specialRequests\": \"\"\n}" },
+            "url": "{{baseUrl}}/api/v1/bookings"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('booking holds rooms', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().data.status).to.eql('PENDING_PAYMENT'); });", "pm.environment.set('bookingId', pm.response.json().data.id);" ] } }]
+        },
+        {
+          "name": "Booking detail",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/v1/bookings/{{bookingId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('booking belongs to current user', () => pm.response.to.have.status(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "7. Payments",
+      "item": [
+        {
+          "name": "Create mock payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"provider\": \"ZALOPAY\"\n}" },
+            "url": "{{baseUrl}}/api/v1/bookings/{{bookingId}}/payments"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('payment attempt created', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().data.status).to.eql('PENDING'); });", "pm.environment.set('paymentId', pm.response.json().data.id);" ] } }]
+        },
+        {
+          "name": "Payment status",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/v1/payments/{{paymentId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('payment is readable by owner', () => pm.response.to.have.status(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "8. Negative and edge cases",
+      "item": [
+        {
+          "name": "Protected route without JWT",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/cart" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('missing JWT rejected', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().error.code).to.eql('UNAUTHORIZED'); });"] } }]
+        },
+        {
+          "name": "Unknown route",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/does-not-exist" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('JSON 404', () => { pm.response.to.have.status(404); pm.response.to.be.json; });"] } }]
+        }
+      ]
+    }
+  ]
+}
