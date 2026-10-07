@@ -259,6 +259,3 @@ The Compose E2E checks mock checkout and callback retries, outbox/CDC delivery, 
 
 The application is a modular monolith with separate process roles. Payment defaults to mock and notifications are log-only. Prices remain fixed/seeded; a booking still contains one room type. Compose uses a single Kafka broker and local service settings; production deployment and high availability are outside the current learning scope.
 
-### Visual references
-
-The architecture layout is inspired by [NYC Taxi Data Pipeline](https://github.com/trannhatnguyen2/NYC_Taxi_Data_Pipeline): tool logos, numbered arrows, and grouped processing areas. Anhbnb's flows and SVG drawings are specific to this repository. Embedded tool icons come from [Devicon](https://github.com/devicons/devicon), under its MIT license; the icon license is retained in the architecture SVG.
