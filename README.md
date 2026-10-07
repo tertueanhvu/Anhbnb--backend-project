@@ -26,7 +26,7 @@ Anhbnb explores a practical backend problem: **how can concurrent guests reserve
 
 The project starts with a Node.js modular monolith and adds PostgreSQL transactions, Redis coordination, transactional outbox, Debezium CDC, Kafka consumers, and an Elasticsearch read model. API, worker, and scheduler run as separate processes within the same application.
 
-This is a coursework and practice project. The default development flow uses mock payments, log-only notifications, and seeded catalog data.
+This backend project is developed for the purpose of practicing. The default development flow uses mock payments, log-only notifications, and seeded catalog data.
 
 ### Features
 
