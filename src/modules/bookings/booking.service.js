@@ -2,6 +2,7 @@ const { createHash, randomBytes } = require("node:crypto");
 const { AppError } = require("../../shared/errors/app-error");
 const { paginationMeta, parsePagination } = require("../../shared/pagination");
 const { databaseDate, todayInTimezone } = require("../../shared/dates");
+const { transactionWithRetry } = require("../../db/transaction-retry");
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -73,6 +74,7 @@ function createBookingService({
   repository,
   availabilityService,
   env,
+  bookingLock,
   clock = () => new Date(),
 }) {
   async function detail(userId, bookingId, trx = db) {
@@ -125,8 +127,8 @@ function createBookingService({
     }
   }
 
-  return {
-    async create(userId, key, body) {
+  const service = {
+    async create(userId, key, body, resourceRetries = 0) {
       if (!key || key.length > 200) {
         throw new AppError(
           400,
@@ -141,9 +143,26 @@ function createBookingService({
         return { booking: await detail(userId, existing.id), reused: true };
       }
 
+      // Pre-read only chooses the contention resource; ownership/selection is
+      // checked again inside PostgreSQL, which is still the authority.
+      const cartItem = body.cartItemId
+        ? await repository.findOwnedCartItem(userId, body.cartItemId)
+        : null;
+      if (body.cartItemId && !cartItem) {
+        throw new AppError(
+          404,
+          "CART_ITEM_NOT_FOUND",
+          "Không tìm thấy cart item.",
+        );
+      }
+      const lockRoomTypeId = cartItem?.room_type_id || body.roomTypeId;
+      const release = bookingLock
+        ? await bookingLock.acquire(lockRoomTypeId)
+        : async () => {};
       let bookingId;
+      let resourceChanged = false;
       try {
-        bookingId = await db.transaction(async (trx) => {
+        bookingId = await transactionWithRetry(db, async (trx) => {
           const raced = await repository.findByIdempotency(
             userId,
             key,
@@ -169,6 +188,13 @@ function createBookingService({
                 "Không tìm thấy cart item.",
               );
             selection = selectionFromCartItem(item);
+            if (selection.roomTypeId !== lockRoomTypeId) {
+              throw new AppError(
+                409,
+                "CART_ROOM_TYPE_CHANGED",
+                "Cart item đã đổi loại phòng. Hãy thử lại cùng Idempotency-Key.",
+              );
+            }
           } else {
             selection = {
               roomTypeId: body.roomTypeId,
@@ -287,12 +313,20 @@ function createBookingService({
           return booking.id;
         });
       } catch (error) {
-        if (error.code !== "23505") throw error;
-        const raced = await repository.findByIdempotency(userId, key);
-        if (!raced) throw error;
-        assertSameRequest(raced, requestFingerprint);
-        bookingId = raced.id;
+        if (error.code === "CART_ROOM_TYPE_CHANGED" && resourceRetries < 2) {
+          resourceChanged = true;
+        } else {
+          if (error.code !== "23505") throw error;
+          const raced = await repository.findByIdempotency(userId, key);
+          if (!raced) throw error;
+          assertSameRequest(raced, requestFingerprint);
+          bookingId = raced.id;
+        }
+      } finally {
+        await release();
       }
+      if (resourceChanged)
+        return service.create(userId, key, body, resourceRetries + 1);
       return { booking: await detail(userId, bookingId), reused: false };
     },
 
@@ -365,6 +399,7 @@ function createBookingService({
       return detail(userId, bookingId);
     },
   };
+  return service;
 }
 
 module.exports = {

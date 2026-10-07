@@ -4,7 +4,7 @@ const env = getEnv();
 
 module.exports = {
   client: "pg",
-  connection: env.databaseUrl,
+  connection: env.migrationDatabaseUrl,
   pool: { min: 0, max: env.nodeEnv === "test" ? 5 : 10 },
   migrations: { directory: "./migrations" },
   seeds: { directory: "./seeds" },

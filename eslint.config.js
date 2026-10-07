@@ -5,6 +5,8 @@ module.exports = [
     ignores: [
       "node_modules/**",
       "coverage/**",
+      "Copying/**",
+      ".gitnexus/**",
       "example01--tourbooking/**",
       "example02--airbnb/**",
     ],
@@ -17,11 +19,14 @@ module.exports = [
       globals: {
         console: "readonly",
         process: "readonly",
+        __dirname: "readonly",
         Buffer: "readonly",
         URL: "readonly",
         URLSearchParams: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     rules: {

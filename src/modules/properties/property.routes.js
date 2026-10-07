@@ -4,8 +4,19 @@ const { validate } = require("../../middlewares/validate");
 const validator = require("./property.validator");
 const availabilityValidator = require("../availability/availability.validator");
 
-function createPropertyRouter({ controller, availabilityController }) {
+function createPropertyRouter({
+  controller,
+  availabilityController,
+  authenticate,
+  limiters,
+}) {
   const router = express.Router();
+  router.use(
+    "/properties",
+    (req, res, next) =>
+      req.get("Authorization") ? authenticate(req, res, next) : next(),
+    limiters.search,
+  );
   router.get(
     "/properties",
     validate(validator.list),

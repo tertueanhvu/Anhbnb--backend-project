@@ -1,47 +1,42 @@
 const { createApp } = require("./app");
 const { getEnv } = require("./config/env");
-const { checkDatabase, closeDatabase } = require("./db/postgres");
+const { db, checkDatabase, closeDatabase } = require("./db/postgres");
 const { logger } = require("./shared/security/logger");
 const { createApiRouter } = require("./routes");
-const {
-  createReconcilePendingPaymentsJob,
-} = require("./jobs/reconcile-pending-payments.job");
-const {
-  createExtendAvailabilityWindowJob,
-} = require("./jobs/extend-availability-window.job");
+const { startSchedulerRuntime } = require("./runtime/scheduler-runtime");
 
 async function startServer() {
   const env = getEnv();
   await checkDatabase();
   const apiRouter = createApiRouter();
   const app = createApp({ checkDatabase, apiRouter });
-  const jobs = env.backgroundJobsEnabled
-    ? [
-        createReconcilePendingPaymentsJob({
-          service: apiRouter.runtimeServices.paymentService,
-          intervalMs: env.reconcileIntervalMs,
-          logger,
-        }),
-        createExtendAvailabilityWindowJob({
-          service: apiRouter.runtimeServices.availabilityService,
-          logger,
-        }),
-      ]
-    : [];
+  const scheduler = env.backgroundJobsEnabled
+    ? await startSchedulerRuntime({
+        db,
+        env,
+        services: apiRouter.runtimeServices,
+        logger,
+        onLost: () => void shutdown("scheduler-session-lost", 1),
+      })
+    : null;
   const server = app.listen(env.port, () =>
     logger.info({ port: env.port }, "API listening"),
   );
-  jobs.forEach((job) => job.start());
 
   let shuttingDown = false;
-  async function shutdown(signal) {
+  async function shutdown(signal, code = 0) {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, "Graceful shutdown started");
-    jobs.forEach((job) => job.stop());
+    const deadline = setTimeout(() => process.exit(1), 45000);
+    deadline.unref();
+    const drainedJobs = scheduler?.stop();
     server.close(async () => {
+      await drainedJobs;
+      apiRouter.close();
       await closeDatabase();
-      process.exit(0);
+      clearTimeout(deadline);
+      process.exit(code);
     });
   }
 

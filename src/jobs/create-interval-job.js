@@ -1,10 +1,15 @@
 function createIntervalJob({ name, intervalMs, task, logger }) {
   let timer;
   let running = false;
+  let pending;
 
   async function tick() {
     if (running) return { skipped: true };
     running = true;
+    let settle;
+    pending = new Promise((resolve) => {
+      settle = resolve;
+    });
     try {
       return await task();
     } catch (error) {
@@ -12,6 +17,7 @@ function createIntervalJob({ name, intervalMs, task, logger }) {
       return { error: true };
     } finally {
       running = false;
+      settle();
     }
   }
 
@@ -19,9 +25,10 @@ function createIntervalJob({ name, intervalMs, task, logger }) {
     start() {
       if (!timer) timer = setInterval(tick, intervalMs);
     },
-    stop() {
+    async stop() {
       if (timer) clearInterval(timer);
       timer = undefined;
+      await pending;
     },
     tick,
     isRunning: () => running,

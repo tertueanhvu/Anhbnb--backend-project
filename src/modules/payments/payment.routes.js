@@ -1,27 +1,26 @@
 const express = require("express");
-const { rateLimit } = require("express-rate-limit");
 const { asyncHandler } = require("../../shared/http/async-handler");
 const { validate } = require("../../middlewares/validate");
 const validator = require("./payment.validator");
+const { createWebhookCapacity } = require("../../middlewares/webhook-capacity");
 
-function createPaymentRouter({ controller, authenticate }) {
+function createPaymentRouter({
+  controller,
+  authenticate,
+  limiters,
+  webhookMaxConcurrent,
+}) {
   const router = express.Router();
-  const paymentLimiter = rateLimit({
-    windowMs: 60_000,
-    limit: 30,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-  });
   router.post(
     "/bookings/:bookingId/payments",
     authenticate,
-    paymentLimiter,
+    limiters.payment,
     validate(validator.bookingPayment),
     asyncHandler(controller.create),
   );
   router.post(
     "/payments/zalopay/callback",
-    paymentLimiter,
+    createWebhookCapacity(webhookMaxConcurrent),
     validate(validator.callback),
     asyncHandler(controller.callback),
   );
@@ -34,7 +33,7 @@ function createPaymentRouter({ controller, authenticate }) {
   router.post(
     "/payments/:paymentId/reconcile",
     authenticate,
-    paymentLimiter,
+    limiters.payment,
     validate(validator.paymentParams),
     asyncHandler(controller.reconcile),
   );

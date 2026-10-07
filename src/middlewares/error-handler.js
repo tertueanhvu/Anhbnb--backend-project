@@ -20,6 +20,8 @@ function errorHandler(error, req, res, _next) {
   const status = expected ? normalized.status : 500;
   const code = expected ? normalized.code : "INTERNAL_ERROR";
   const message = expected ? normalized.message : "Đã xảy ra lỗi hệ thống.";
+  if (expected && normalized.retryAfter)
+    res.set("Retry-After", String(normalized.retryAfter));
 
   if (!expected) {
     req.log?.error(

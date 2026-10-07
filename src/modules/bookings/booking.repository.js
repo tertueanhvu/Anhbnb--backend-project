@@ -1,4 +1,6 @@
-function createBookingRepository(db) {
+function createBookingRepository(db, { outbox } = {}) {
+  const transaction = (trx, work) =>
+    outbox && !trx.isTransaction ? trx.transaction(work) : work(trx);
   return {
     findByIdempotency(userId, key, trx = db, lock = false) {
       let query = trx("bookings")
@@ -18,29 +20,39 @@ function createBookingRepository(db) {
 
     async expireHeldBookings(bookingIds, now, trx = db) {
       if (!bookingIds.length) return [];
-      const expired = await trx("bookings")
-        .whereIn("id", bookingIds)
-        .where("status", "PENDING_PAYMENT")
-        .where("hold_expires_at", "<=", now)
-        .update({ status: "EXPIRED", updated_at: now })
-        .returning("id");
-      const ids = expired.map((row) => row.id);
-      if (ids.length) {
-        await trx("room_availability")
-          .whereIn("booking_id", ids)
-          .where("status", "HELD")
-          .update({ status: "OPEN", booking_id: null, updated_at: now });
-        await trx("payments")
-          .whereIn("booking_id", ids)
-          .whereIn("status", ["CREATED", "PENDING"])
-          .update({ status: "EXPIRED", updated_at: now });
-      }
-      return ids;
+      return transaction(trx, async (trx) => {
+        const expired = await trx("bookings")
+          .whereIn("id", bookingIds)
+          .where("status", "PENDING_PAYMENT")
+          .where("hold_expires_at", "<=", now)
+          .update({ status: "EXPIRED", updated_at: now })
+          .returning("*");
+        const ids = expired.map((row) => row.id);
+        if (ids.length) {
+          await trx("room_availability")
+            .whereIn("booking_id", ids)
+            .where("status", "HELD")
+            .update({ status: "OPEN", booking_id: null, updated_at: now });
+          const payments = await trx("payments")
+            .whereIn("booking_id", ids)
+            .whereIn("status", ["CREATED", "PENDING"])
+            .update({ status: "EXPIRED", updated_at: now })
+            .returning("*");
+          for (const row of expired)
+            await outbox?.transition(trx, "booking", row);
+          for (const row of payments)
+            await outbox?.transition(trx, "payment", row);
+        }
+        return ids;
+      });
     },
 
     async insertBooking(input, trx = db) {
-      const [row] = await trx("bookings").insert(input).returning("*");
-      return row;
+      return transaction(trx, async (trx) => {
+        const [row] = await trx("bookings").insert(input).returning("*");
+        await outbox?.transition(trx, "booking", row);
+        return row;
+      });
     },
 
     insertBookingRooms(rows, trx = db) {
@@ -143,11 +155,19 @@ function createBookingRepository(db) {
     },
 
     async updateStatus(bookingId, patch, trx = db) {
-      const [row] = await trx("bookings")
-        .where({ id: bookingId })
-        .update({ ...patch, updated_at: trx.fn.now() })
-        .returning("*");
-      return row;
+      return transaction(trx, async (trx) => {
+        const before = await trx("bookings")
+          .where({ id: bookingId })
+          .forUpdate()
+          .first();
+        const [row] = await trx("bookings")
+          .where({ id: bookingId })
+          .update({ ...patch, updated_at: trx.fn.now() })
+          .returning("*");
+        if (row && row.status !== before.status)
+          await outbox?.transition(trx, "booking", row);
+        return row;
+      });
     },
 
     releaseAvailability(bookingId, trx = db) {

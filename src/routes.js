@@ -1,17 +1,36 @@
 const express = require("express");
 const { db } = require("./db/postgres");
 const { getEnv } = require("./config/env");
+const { createMetrics } = require("./infrastructure/metrics");
+const { createDomainServices } = require("./runtime/domain-services");
+const {
+  createBulkQuoteRepository,
+} = require("./modules/availability/bulk-quote.repository");
+const {
+  createBulkQuoteService,
+} = require("./modules/availability/bulk-quote.service");
+const { createSearchClient } = require("./infrastructure/search/client");
+const {
+  createSearchRepository,
+} = require("./modules/search/search.repository");
+const { createFreshnessGate } = require("./modules/search/freshness");
+const { createSearchCursor } = require("./modules/search/cursor");
+const { createRedisClient } = require("./infrastructure/redis/client");
+const { createBookingLock } = require("./infrastructure/redis/lock");
+const { createRateLimiters } = require("./middlewares/rate-limit");
+const { createPublicCache } = require("./infrastructure/redis/cache");
+const {
+  createReferenceRepository,
+} = require("./modules/catalog/reference.repository");
+const {
+  createReferenceService,
+} = require("./modules/catalog/reference.service");
+const { createReferenceRouter } = require("./modules/catalog/reference.routes");
 const { createAuthRepository } = require("./modules/auth/auth.repository");
 const { createAuthService } = require("./modules/auth/auth.service");
 const { createAuthController } = require("./modules/auth/auth.controller");
 const { createAuthRouter } = require("./modules/auth/auth.routes");
 const { createAuthenticate } = require("./middlewares/authenticate");
-const {
-  createAvailabilityRepository,
-} = require("./modules/availability/availability.repository");
-const {
-  createAvailabilityService,
-} = require("./modules/availability/availability.service");
 const {
   createAvailabilityController,
 } = require("./modules/availability/availability.controller");
@@ -32,46 +51,79 @@ const { createCartService } = require("./modules/carts/cart.service");
 const { createCartController } = require("./modules/carts/cart.controller");
 const { createCartRouter } = require("./modules/carts/cart.routes");
 const {
-  createBookingRepository,
-} = require("./modules/bookings/booking.repository");
-const { createBookingService } = require("./modules/bookings/booking.service");
-const {
   createBookingController,
 } = require("./modules/bookings/booking.controller");
 const { createBookingRouter } = require("./modules/bookings/booking.routes");
 const {
-  createPaymentRepository,
-} = require("./modules/payments/payment.repository");
-const { createPaymentService } = require("./modules/payments/payment.service");
-const {
   createPaymentController,
 } = require("./modules/payments/payment.controller");
 const { createPaymentRouter } = require("./modules/payments/payment.routes");
-const {
-  createZaloPayProvider,
-} = require("./modules/payments/providers/zalopay.provider");
-const {
-  createMockPaymentProvider,
-} = require("./modules/payments/providers/mock-payment.provider");
 
-function createApiRouter() {
-  const env = getEnv();
+function createApiRouter({ env = getEnv() } = {}) {
   const router = express.Router();
+  const metrics = createMetrics();
+  const redis = createRedisClient({
+    url: env.redisUrl,
+    commandTimeoutMs: env.redisCommandTimeoutMs,
+    metrics,
+  });
+  const limiters = createRateLimiters({ redis, env, metrics });
+  const bookingLock = createBookingLock({
+    redis,
+    namespace: env.redisNamespace,
+    ttlMs: env.redisLockTtlMs,
+    retryCount: env.redisLockRetryCount,
+    waitMs: env.redisLockWaitMs,
+    metrics,
+  });
+  const cache = createPublicCache({
+    redis,
+    namespace: env.redisNamespace,
+    enabled: env.cacheEnabled,
+    metrics,
+  });
   const authRepository = createAuthRepository(db);
   const authService = createAuthService({ repository: authRepository, env });
   const authController = createAuthController(authService);
   const authenticate = createAuthenticate({ repository: authRepository, env });
-  const availabilityRepository = createAvailabilityRepository(db);
-  const availabilityService = createAvailabilityService({
-    repository: availabilityRepository,
-    env,
-  });
+  const { availabilityService, bookingService, paymentService } =
+    createDomainServices({
+      db,
+      env,
+      bookingLock,
+      meterWebhook: limiters.meterWebhook,
+    });
   const availabilityController =
     createAvailabilityController(availabilityService);
   const propertyRepository = createPropertyRepository(db);
   const propertyService = createPropertyService({
     repository: propertyRepository,
     availabilityService,
+    bulkQuoteService: createBulkQuoteService({
+      repository: createBulkQuoteRepository(db),
+      env,
+    }),
+    search:
+      env.searchBackend === "es"
+        ? {
+            repository: createSearchRepository({
+              client: createSearchClient({
+                url: env.elasticsearchUrl,
+                apiKey: env.elasticsearchApiKey,
+              }),
+              index: env.elasticsearchIndex,
+              metrics,
+            }),
+            freshness: createFreshnessGate({
+              db,
+              topic: `${env.kafkaTopicPrefix}.catalog.events.v1`,
+              maxAgeMs: env.searchFreshnessMaxAgeMs,
+            }),
+            cursor: createSearchCursor(env.jwtSecret),
+          }
+        : null,
+    cache,
+    cacheTtl: env.cacheTtl,
   });
   const propertyController = createPropertyController(propertyService);
   const cartRepository = createCartRepository(db);
@@ -81,45 +133,56 @@ function createApiRouter() {
     db,
   });
   const cartController = createCartController(cartService);
-  const bookingRepository = createBookingRepository(db);
-  const bookingService = createBookingService({
-    db,
-    repository: bookingRepository,
-    availabilityService,
-    env,
-  });
   const bookingController = createBookingController(bookingService);
-  const provider =
-    env.paymentProviderMode === "zalopay"
-      ? createZaloPayProvider(env.zalopay)
-      : createMockPaymentProvider({
-          key2: env.zalopay.key2 || "mock-callback-key",
-        });
-  const paymentRepository = createPaymentRepository(db);
-  const paymentService = createPaymentService({
-    db,
-    repository: paymentRepository,
-    bookingRepository,
-    provider,
-    env,
-  });
   const paymentController = createPaymentController(paymentService);
 
-  router.use(createAuthRouter({ controller: authController, authenticate }));
+  router.use(
+    createAuthRouter({ controller: authController, authenticate, limiters }),
+  );
+  const referenceService = createReferenceService({
+    repository: createReferenceRepository(db),
+    cache,
+    ttlSeconds: env.cacheTtl.reference,
+  });
+  router.use(
+    createReferenceRouter({
+      service: referenceService,
+      authenticate,
+      limiters,
+    }),
+  );
   router.use(
     createPropertyRouter({
       controller: propertyController,
       availabilityController,
+      authenticate,
+      limiters,
     }),
   );
   router.use(createCartRouter({ controller: cartController, authenticate }));
   router.use(
-    createBookingRouter({ controller: bookingController, authenticate }),
+    createBookingRouter({
+      controller: bookingController,
+      authenticate,
+      limiters,
+    }),
   );
   router.use(
-    createPaymentRouter({ controller: paymentController, authenticate }),
+    createPaymentRouter({
+      controller: paymentController,
+      authenticate,
+      limiters,
+      webhookMaxConcurrent: env.webhookMaxConcurrent,
+    }),
   );
-  router.runtimeServices = { availabilityService, paymentService };
+  router.runtimeServices = {
+    availabilityService,
+    paymentService,
+    redis,
+    cache,
+    metrics,
+  };
+  router.close = () => redis.close();
   return router;
 }
 

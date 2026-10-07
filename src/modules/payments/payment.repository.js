@@ -1,4 +1,6 @@
-function createPaymentRepository(db) {
+function createPaymentRepository(db, { outbox } = {}) {
+  const transaction = (trx, work) =>
+    outbox && !trx.isTransaction ? trx.transaction(work) : work(trx);
   return {
     async findOwnedBookingForUpdate(userId, bookingId, trx = db) {
       return trx("bookings")
@@ -25,17 +27,28 @@ function createPaymentRepository(db) {
     },
 
     async create(input, trx = db) {
-      const [row] = await trx("payments").insert(input).returning("*");
-      return row;
+      return transaction(trx, async (trx) => {
+        const [row] = await trx("payments").insert(input).returning("*");
+        await outbox?.transition(trx, "payment", row);
+        return row;
+      });
     },
 
     async updateIfNotSucceeded(paymentId, patch, trx = db) {
-      const [row] = await trx("payments")
-        .where({ id: paymentId })
-        .whereNot({ status: "SUCCEEDED" })
-        .update({ ...patch, updated_at: trx.fn.now() })
-        .returning("*");
-      return row || trx("payments").where({ id: paymentId }).first();
+      return transaction(trx, async (trx) => {
+        const before = await trx("payments")
+          .where({ id: paymentId })
+          .forUpdate()
+          .first();
+        const [row] = await trx("payments")
+          .where({ id: paymentId })
+          .whereNot({ status: "SUCCEEDED" })
+          .update({ ...patch, updated_at: trx.fn.now() })
+          .returning("*");
+        if (row && row.status !== before.status)
+          await outbox?.transition(trx, "payment", row);
+        return row || trx("payments").where({ id: paymentId }).first();
+      });
     },
 
     findOwnedById(userId, paymentId, trx = db, lock = false) {
@@ -89,35 +102,49 @@ function createPaymentRepository(db) {
     },
 
     async markSucceeded(paymentId, providerTransId, paidAt, trx = db) {
-      const [row] = await trx("payments")
-        .where({ id: paymentId })
-        .update({
-          status: "SUCCEEDED",
-          provider_trans_id: providerTransId,
-          paid_at: paidAt,
-          updated_at: trx.fn.now(),
-        })
-        .returning("*");
-      return row;
+      return transaction(trx, async (trx) => {
+        const [row] = await trx("payments")
+          .where({ id: paymentId })
+          .whereNot({ status: "SUCCEEDED" })
+          .update({
+            status: "SUCCEEDED",
+            provider_trans_id: providerTransId,
+            paid_at: paidAt,
+            updated_at: trx.fn.now(),
+          })
+          .returning("*");
+        if (row) await outbox?.transition(trx, "payment", row);
+        return row || trx("payments").where({ id: paymentId }).first();
+      });
     },
 
-    markFailed(paymentId, code, message, trx = db) {
-      return trx("payments")
-        .where({ id: paymentId })
-        .whereNot({ status: "SUCCEEDED" })
-        .update({
-          status: "FAILED",
-          provider_code: code || null,
-          provider_message: message?.slice(0, 500) || null,
-          updated_at: trx.fn.now(),
-        });
+    async markFailed(paymentId, code, message, trx = db) {
+      return transaction(trx, async (trx) => {
+        const rows = await trx("payments")
+          .where({ id: paymentId })
+          .whereNotIn("status", ["SUCCEEDED", "FAILED"])
+          .update({
+            status: "FAILED",
+            provider_code: code || null,
+            provider_message: message?.slice(0, 500) || null,
+            updated_at: trx.fn.now(),
+          })
+          .returning("*");
+        for (const row of rows) await outbox?.transition(trx, "payment", row);
+        return rows.length;
+      });
     },
 
-    confirmBooking(bookingId, now, trx = db) {
-      return trx("bookings")
-        .where({ id: bookingId })
-        .whereIn("status", ["PENDING_PAYMENT", "EXPIRED"])
-        .update({ status: "CONFIRMED", confirmed_at: now, updated_at: now });
+    async confirmBooking(bookingId, now, trx = db) {
+      return transaction(trx, async (trx) => {
+        const rows = await trx("bookings")
+          .where({ id: bookingId })
+          .whereIn("status", ["PENDING_PAYMENT", "EXPIRED"])
+          .update({ status: "CONFIRMED", confirmed_at: now, updated_at: now })
+          .returning("*");
+        for (const row of rows) await outbox?.transition(trx, "booking", row);
+        return rows.length;
+      });
     },
 
     bookHeldAvailability(bookingId, now, trx = db) {

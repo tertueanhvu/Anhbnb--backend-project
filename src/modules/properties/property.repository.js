@@ -1,5 +1,12 @@
 function createPropertyRepository(db) {
   return {
+    findActiveByIds(ids, trx = db) {
+      if (!ids.length) return [];
+      return trx("properties")
+        .whereIn("id", ids)
+        .where({ status: "ACTIVE" })
+        .timeout(1500, { cancel: true });
+    },
     async list(filters, trx = db) {
       const query = trx("properties as p")
         .where("p.status", "ACTIVE")
@@ -40,11 +47,14 @@ function createPropertyRepository(db) {
             }),
         );
       }
-      return query.orderBy("p.id");
+      return query.orderBy("p.id").timeout(2000, { cancel: true });
     },
 
     findActiveById(id, trx = db) {
-      return trx("properties").where({ id, status: "ACTIVE" }).first();
+      return trx("properties")
+        .where({ id, status: "ACTIVE" })
+        .first()
+        .timeout(2000, { cancel: true });
     },
 
     getImages(propertyIds, trx = db) {
@@ -55,7 +65,8 @@ function createPropertyRepository(db) {
           { column: "property_id" },
           { column: "sort_order" },
           { column: "id" },
-        ]);
+        ])
+        .timeout(2000, { cancel: true });
     },
 
     getAmenities(propertyIds, trx = db) {
@@ -64,7 +75,8 @@ function createPropertyRepository(db) {
         .join("amenities as a", "a.id", "pa.amenity_id")
         .whereIn("pa.property_id", propertyIds)
         .select("pa.property_id", "a.id", "a.code", "a.name", "a.icon")
-        .orderBy(["pa.property_id", "a.code"]);
+        .orderBy(["pa.property_id", "a.code"])
+        .timeout(2000, { cancel: true });
     },
 
     getRoomTypes(propertyIds, filters = {}, trx = db) {
@@ -82,7 +94,9 @@ function createPropertyRepository(db) {
         query.where("rt.bed_count", ">=", filters.minBedrooms);
       if (filters.minBathrooms !== undefined)
         query.where("rt.bathroom_count", ">=", filters.minBathrooms);
-      return query.orderBy(["rt.property_id", "rt.base_price", "rt.id"]);
+      return query
+        .orderBy(["rt.property_id", "rt.base_price", "rt.id"])
+        .timeout(2000, { cancel: true });
     },
   };
 }

@@ -1,27 +1,20 @@
 const express = require("express");
-const { rateLimit } = require("express-rate-limit");
 const { validate } = require("../../middlewares/validate");
 const { asyncHandler } = require("../../shared/http/async-handler");
 const validator = require("./auth.validator");
 
-function createAuthRouter({ controller, authenticate }) {
+function createAuthRouter({ controller, authenticate, limiters }) {
   const router = express.Router();
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 20,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-  });
 
   router.post(
     "/auth/register",
-    authLimiter,
+    limiters.register,
     validate(validator.register),
     asyncHandler(controller.register),
   );
   router.post(
     "/auth/login",
-    authLimiter,
+    limiters.login,
     validate(validator.login),
     asyncHandler(controller.login),
   );

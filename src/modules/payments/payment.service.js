@@ -26,6 +26,7 @@ function createPaymentService({
   bookingRepository,
   provider,
   env,
+  meterWebhook = async () => {},
   clock = () => new Date(),
 }) {
   async function applySuccess(event) {
@@ -246,6 +247,10 @@ function createPaymentService({
 
     async callback(body) {
       const data = provider.verifyCallback(body);
+      if (String(data.app_id) === String(provider.appId)) {
+        // Telemetry is after MAC verification and must not block valid callbacks.
+        await meterWebhook(data.app_id).catch(() => {});
+      }
       const result = await applySuccess({
         appId: data.app_id,
         appTransId: data.app_trans_id,

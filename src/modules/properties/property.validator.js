@@ -21,8 +21,12 @@ const filters = {
   maxPrice: Joi.number().integer().min(0),
   minBedrooms: Joi.number().integer().min(0),
   minBathrooms: Joi.number().min(0),
+  lat: Joi.number().min(-90).max(90),
+  lon: Joi.number().min(-180).max(180),
+  radiusKm: Joi.number().greater(0).max(200),
+  cursor: Joi.string().max(4000),
   sort: Joi.string()
-    .valid("recommended", "price_asc", "price_desc", "name_asc")
+    .valid("recommended", "price_asc", "price_desc", "name_asc", "distance")
     .default("recommended"),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
@@ -31,7 +35,10 @@ const filters = {
 const list = {
   query: Joi.object({ ...stayFields, ...filters })
     .and("checkIn", "checkOut")
+    .and("lat", "lon", "radiusKm")
     .custom((value, helpers) => {
+      if (value.sort === "distance" && value.lat === undefined)
+        return helpers.error("any.invalid");
       if (
         value.minPrice !== undefined &&
         value.maxPrice !== undefined &&

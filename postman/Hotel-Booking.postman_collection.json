@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "54238bcc-f84f-4e86-84bc-f52d1fd69884",
-    "name": "Hotel Booking Phase 1",
-    "description": "Flow local không chứa secret. Chạy server và seed database trước khi chạy collection.",
+    "name": "Anhbnb Phase 1 + Phase 2",
+    "description": "API v1 + Redis/ES smoke. Chỉ dùng trên DB dev/test: collection tạo user, booking và payment mock. Seed chỉ lần đầu DB trống. Folder 9 thêm reference/geo/cache, duplicate booking và callback MOCK; không dùng callback này với provider thật. Các failure drills Kafka/Redis nằm trong docs/phase-2-runbook.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -144,7 +144,7 @@
             "body": { "mode": "raw", "raw": "{\n  \"provider\": \"ZALOPAY\"\n}" },
             "url": "{{baseUrl}}/api/v1/bookings/{{bookingId}}/payments"
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('payment attempt created', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().data.status).to.eql('PENDING'); });", "pm.environment.set('paymentId', pm.response.json().data.id);" ] } }]
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('payment attempt created', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().data.status).to.eql('PENDING'); });", "pm.environment.set('paymentId', pm.response.json().data.id);", "const payment = pm.response.json().data;", "if (payment.checkoutUrl && payment.checkoutUrl.startsWith('https://mock-payments.local/checkout/')) { pm.environment.set('mockAppTransId', payment.checkoutUrl.split('/').pop()); pm.environment.set('mockPaymentAmount', payment.amount); } else { pm.environment.unset('mockAppTransId'); }" ] } }]
         },
         {
           "name": "Payment status",
@@ -165,6 +165,49 @@
           "name": "Unknown route",
           "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/does-not-exist" },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('JSON 404', () => { pm.response.to.have.status(404); pm.response.to.be.json; });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "9. Phase 2 — cache, geo, idempotency, MOCK callback",
+      "item": [
+        {
+          "name": "Cached amenities",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/amenities", "description": "Public cache-aside danh mục; Redis down fallback PostgreSQL. Không cần JWT." },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('public reference', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data).to.be.an('array'); });"] } }]
+        },
+        {
+          "name": "Cached locations",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/locations" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('locations', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Geo search",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/properties?lat=10.7769&lon=106.7009&radiusKm=50&sort=distance&limit=10", "description": "ES geo_point + Redis discovery cache. Cần worker search/probes chạy đủ 3 partitions. PG mode trả SEARCH_BACKEND_REQUIRED; searchEnabled=true bắt buộc ES 200." },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('geo backend contract', () => { if (pm.environment.get('searchEnabled') === 'true') { pm.response.to.have.status(200); } else { pm.expect([200, 503]).to.include(pm.response.code); if (pm.response.code === 503) pm.expect(pm.response.json().error.code).to.eql('SEARCH_BACKEND_REQUIRED'); } });"] } }]
+        },
+        {
+          "name": "Dated search — fresh PostgreSQL quote",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/properties?checkIn={{checkIn}}&checkOut={{checkOut}}&roomQuantity=1&adults=2&children=0", "description": "Chỉ discovery được cache; bulk quote PostgreSQL chạy lại mỗi request, phòng đã giữ có thể bị loại khỏi kết quả." },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('dated quote', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().meta.quotedAt).to.be.a('string'); });"] } }]
+        },
+        {
+          "name": "Duplicate checkout — same key, same booking",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }, { "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/bookings", "body": { "mode": "raw", "raw": "{\"cartItemId\":\"{{cartItemId}}\",\"contact\":{\"fullName\":\"Postman Guest\",\"email\":\"{{email}}\",\"phone\":\"0901234567\"},\"specialRequests\":\"\"}" }, "description": "Không giữ thêm phòng, không tạo thêm outbox transition. Cart item đã cleanup vẫn replay được nhờ request fingerprint." },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('same logical effect', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('bookingId')); });"] } }]
+        },
+        {
+          "name": "MOCK success callback — safe to resend unchanged",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/payments/zalopay/callback", "body": { "mode": "raw", "raw": "{{mockCallbackBody}}" }, "description": "Chỉ MOCK local. Script chỉ tạo callback khi checkoutUrl là mock-payments.local. Gửi lại request này phải return_code=1, không confirm/job lần hai. Không đưa credentials thật vào collection." },
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["{", "if (!pm.environment.get('mockAppTransId')) throw new Error('Only MOCK checkout is supported here');", "const data = JSON.stringify({app_id:'MOCK', app_trans_id:pm.environment.get('mockAppTransId'), amount:Number(pm.environment.get('mockPaymentAmount')), zp_trans_id:'postman-'+pm.environment.get('runId'), server_time:Date.now()});", "const mac = require('crypto-js').HmacSHA256(data, 'mock-callback-key').toString();", "pm.variables.set('mockCallbackBody', JSON.stringify({data,mac,type:1}));", "}"] } },
+            { "listen": "test", "script": { "exec": ["pm.test('mock callback accepted', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().return_code).to.eql(1); });"] } }
+          ]
+        },
+        {
+          "name": "Confirmed booking after callback",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/v1/bookings/{{bookingId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('confirmed in canonical DB', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('CONFIRMED'); });"] } }]
         }
       ]
     }

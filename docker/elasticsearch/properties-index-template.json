@@ -1,0 +1,53 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "analysis": {
+      "analyzer": {
+        "catalog_text": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding"]
+        }
+      },
+      "normalizer": {
+        "folded": { "type": "custom", "filter": ["lowercase", "asciifolding"] }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "propertyId": { "type": "keyword" },
+      "name": {
+        "type": "text",
+        "analyzer": "catalog_text",
+        "fields": { "keyword": { "type": "keyword", "normalizer": "folded" } }
+      },
+      "description": { "type": "text", "analyzer": "catalog_text" },
+      "address": { "type": "text", "analyzer": "catalog_text" },
+      "city": { "type": "keyword", "normalizer": "folded" },
+      "district": { "type": "keyword", "normalizer": "folded" },
+      "countryCode": { "type": "keyword" },
+      "location": { "type": "geo_point" },
+      "amenityCodes": { "type": "keyword" },
+      "roomTypes": {
+        "type": "nested",
+        "properties": {
+          "roomTypeId": { "type": "keyword" },
+          "name": { "type": "text" },
+          "basePrice": { "type": "long" },
+          "maxGuests": { "type": "integer" },
+          "bedCount": { "type": "integer" },
+          "bathroomCount": { "type": "float" },
+          "roomCount": { "type": "integer" }
+        }
+      },
+      "minBasePrice": { "type": "long" },
+      "version": { "type": "long" },
+      "active": { "type": "boolean" },
+      "deleted": { "type": "boolean" },
+      "updatedAt": { "type": "date" }
+    }
+  }
+}

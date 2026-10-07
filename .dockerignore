@@ -1,0 +1,16 @@
+.git
+.gitnexus
+.agents
+.claude
+.codex
+.local
+.env*
+node_modules
+Copying
+example01--tourbooking
+example02--airbnb
+docs
+assets
+coverage
+*.dump
+*.log

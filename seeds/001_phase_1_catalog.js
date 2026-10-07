@@ -2,6 +2,13 @@ const catalog = require("./phase-1-catalog.json");
 const { addDays, todayInTimezone } = require("../src/shared/dates");
 
 exports.seed = async function seed(knex) {
+  if (await knex.schema.hasTable("catalog_versions")) {
+    const version = await knex("catalog_versions").first("property_id");
+    if (version)
+      throw new Error(
+        "Catalog events already initialized: use catalog:update / catalog:repair; seed must not silently bypass outbox.",
+      );
+  }
   const now = new Date();
 
   await knex.transaction(async (trx) => {

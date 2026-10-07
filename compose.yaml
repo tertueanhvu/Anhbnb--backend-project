@@ -1,0 +1,298 @@
+name: anhbnb-phase2
+
+x-app-environment:
+  &app-environment # Explicit allowlist: runtime never receives admin/migration/CDC passwords.
+  NODE_ENV: development
+  PORT: 3000
+  DATABASE_URL: postgresql://hotel_booking_app:${APP_DB_PASSWORD:?Run local setup first}@postgres:5432/hotel_booking_dev
+  JWT_SECRET: ${JWT_SECRET:?Run local setup first}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+  REDIS_URL: redis://redis:6379
+  REDIS_NAMESPACE: anhbnb:dev
+  KAFKA_BROKERS: kafka:29092
+  KAFKA_CONNECT_URL: http://kafka-connect:8083
+  ELASTICSEARCH_URL: http://elasticsearch:9200
+  ELASTICSEARCH_INDEX: properties_read
+  SEARCH_BACKEND: ${SEARCH_BACKEND:-pg}
+  SEARCH_PROBES_ENABLED: ${SEARCH_PROBES_ENABLED:-false}
+  WORKER_HANDLERS: ${WORKER_HANDLERS:-notification,cache,search}
+  OUTBOX_ENABLED: "true"
+  BACKGROUND_JOBS_ENABLED: "false"
+  PAYMENT_PROVIDER_MODE: mock
+  EMAIL_TRANSPORT: log
+  TRUST_PROXY: "false"
+
+x-app: &app
+  image: anhbnb-api:phase2-local
+  build:
+    context: .
+    target: production
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  stop_grace_period: 60s
+  environment: *app-environment
+  healthcheck:
+    test: [CMD, node, docker/healthcheck.js]
+    interval: 10s
+    timeout: 5s
+    start_period: 30s
+    retries: 12
+
+services:
+  api:
+    <<: *app
+    profiles: [app]
+    command: [node, src/server.js]
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  worker:
+    <<: *app
+    profiles: [app]
+    command: [node, src/worker.js]
+    environment:
+      <<: *app-environment
+      PROCESS_HEALTH_PORT: 3001
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+  scheduler:
+    <<: *app
+    profiles: [app]
+    command: [node, src/scheduler.js]
+    environment:
+      <<: *app-environment
+      PROCESS_HEALTH_PORT: 3002
+    depends_on:
+      postgres: { condition: service_healthy }
+  migrate:
+    <<: *app
+    profiles: [tools]
+    command: [npm, run, db:migrate]
+    healthcheck: { disable: true }
+    environment:
+      <<: *app-environment
+      MIGRATION_DATABASE_URL: postgresql://hotel_booking_migrator:${MIGRATION_DB_PASSWORD:?Run local setup first}@postgres:5432/hotel_booking_dev
+    depends_on:
+      postgres: { condition: service_healthy }
+  seed:
+    <<: *app
+    profiles: [tools]
+    command: [npm, run, db:seed]
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+  search-init:
+    <<: *app
+    profiles: [tools]
+    command: [npm, run, search:init]
+    healthcheck: { disable: true }
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17.11-bookworm}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run local setup first}
+      POSTGRES_DB: postgres
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Run local setup first}
+      MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:?Run local setup first}
+      CDC_DB_PASSWORD: ${CDC_DB_PASSWORD:?Run local setup first}
+    entrypoint: [bash, /opt/anhbnb/entrypoint.sh]
+    command:
+      [
+        postgres,
+        -c,
+        wal_level=logical,
+        -c,
+        max_wal_senders=10,
+        -c,
+        max_replication_slots=10,
+      ]
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres:/opt/anhbnb:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d hotel_booking_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    shm_size: 128mb
+    stop_grace_period: 30s
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4.5-bookworm}
+    command:
+      [
+        redis-server,
+        --save,
+        "",
+        --appendonly,
+        "no",
+        --maxmemory,
+        256mb,
+        --maxmemory-policy,
+        noeviction,
+      ]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: ${KAFKA_IMAGE:-apache/kafka:3.9.1}
+    profiles: [messaging]
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_HEAP_OPTS: ${KAFKA_HEAP_OPTS:--Xms256m -Xmx512m}
+    ports:
+      - "127.0.0.1:${KAFKA_EXTERNAL_PORT:-9092}:9092"
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+    depends_on:
+      kafka-volume-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    stop_grace_period: 30s
+  kafka-volume-init:
+    image: ${KAFKA_IMAGE:-apache/kafka:3.9.1}
+    profiles: [messaging]
+    user: "0:0"
+    entrypoint: [chown, "1000:1000", /data]
+    volumes:
+      - kafka_data:/data
+  kafka-init:
+    image: ${KAFKA_IMAGE:-apache/kafka:3.9.1}
+    profiles: [tools]
+    entrypoint: [bash, /init/topics.sh]
+    volumes:
+      - ./docker/kafka:/init:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+  cdc-init:
+    image: ${POSTGRES_IMAGE:-postgres:17.11-bookworm}
+    profiles: [tools]
+    entrypoint: [bash, /init/init-cdc.sh]
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGDATABASE: hotel_booking_dev
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Run local setup first}
+    volumes:
+      - ./docker/postgres:/init:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+  kafka-connect:
+    image: ${DEBEZIUM_CONNECT_IMAGE:-quay.io/debezium/connect:3.2.4}
+    profiles: [messaging]
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: anhbnb-connect
+      CONFIG_STORAGE_TOPIC: anhbnb.connect.configs
+      OFFSET_STORAGE_TOPIC: anhbnb.connect.offsets
+      STATUS_STORAGE_TOPIC: anhbnb.connect.status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: All
+      CONNECT_PRODUCER_ACKS: all
+      CONNECT_PRODUCER_ENABLE_IDEMPOTENCE: "true"
+      CONNECT_PRODUCER_RETRIES: 2147483647
+      CONNECT_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION: 5
+      CONNECT_CONFIG_PROVIDERS: env
+      CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+      CONNECT_CONFIG_PROVIDERS_ENV_PARAM_ALLOWLIST_PATTERN: CDC_DB_PASSWORD
+      CDC_DB_PASSWORD: ${CDC_DB_PASSWORD:?Run local setup first}
+      HEAP_OPTS: ${CONNECT_HEAP_OPTS:--Xms256m -Xmx512m}
+    ports:
+      - "127.0.0.1:${CONNECT_PORT:-8083}:8083"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://localhost:8083/connectors >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    stop_grace_period: 30s
+  connector-init:
+    image: ${DEBEZIUM_CONNECT_IMAGE:-quay.io/debezium/connect:3.2.4}
+    profiles: [tools]
+    entrypoint: [bash, /init/register-connector.sh]
+    volumes:
+      - ./docker/debezium:/init:ro
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:8.19.22}
+    profiles: [search]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      node.store.allow_mmap: "false"
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+    ports:
+      - "127.0.0.1:${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    mem_limit: 1536m
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=3s' >/dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:
+  kafka_data:
+  elasticsearch_data:

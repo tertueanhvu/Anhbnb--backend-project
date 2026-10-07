@@ -3,11 +3,12 @@ const { asyncHandler } = require("../../shared/http/async-handler");
 const { validate } = require("../../middlewares/validate");
 const validator = require("./booking.validator");
 
-function createBookingRouter({ controller, authenticate }) {
+function createBookingRouter({ controller, authenticate, limiters }) {
   const router = express.Router();
   router.use("/bookings", authenticate);
   router.post(
     "/bookings",
+    limiters.booking,
     validate(validator.create),
     asyncHandler(controller.create),
   );

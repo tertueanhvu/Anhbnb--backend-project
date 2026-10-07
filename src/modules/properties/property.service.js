@@ -1,5 +1,10 @@
 const { AppError } = require("../../shared/errors/app-error");
 const { paginationMeta, parsePagination } = require("../../shared/pagination");
+const { createSearchService } = require("../search/search.service");
+const {
+  isPublicCatalog,
+  normalizeDiscoveryQuery,
+} = require("./public-catalog");
 
 function groupBy(rows, key) {
   const result = new Map();
@@ -78,6 +83,10 @@ function roomTypeDto(row, quote) {
 function createPropertyService({
   repository,
   availabilityService,
+  bulkQuoteService,
+  search,
+  cache,
+  cacheTtl = { property: 300, search: 30 },
   clock = () => new Date(),
 }) {
   async function hydrate(properties, query, { filterUnavailable = true } = {}) {
@@ -130,22 +139,130 @@ function createPropertyService({
     return result;
   }
 
-  function sortProperties(items, sort) {
+  function sortProperties(items, sort, withStay = false) {
     const multiplier = sort === "price_desc" ? -1 : 1;
     return items.sort((a, b) => {
       let comparison = 0;
       if (sort === "price_asc" || sort === "price_desc")
-        comparison = a.startingPrice - b.startingPrice;
+        comparison = withStay
+          ? Math.min(...a.roomTypes.map((room) => room.price.total)) -
+            Math.min(...b.roomTypes.map((room) => room.price.total))
+          : a.startingPrice - b.startingPrice;
       if (sort === "name_asc") comparison = a.name.localeCompare(b.name);
       return comparison * multiplier || a.id.localeCompare(b.id);
     });
   }
 
+  async function readCatalog(options) {
+    return cache
+      ? cache.read({ ...options, validate: isPublicCatalog })
+      : options.load();
+  }
+
+  async function quoteCatalog(
+    items,
+    query,
+    filterUnavailable = true,
+    options = {},
+  ) {
+    if (!query.checkIn || !query.checkOut) return items;
+    const bulk = bulkQuoteService
+      ? await bulkQuoteService.quote(
+          items.map((item) => item.id),
+          query,
+          options,
+        )
+      : null;
+    const result = [];
+    for (const property of items) {
+      const roomTypes = [];
+      for (const room of property.roomTypes) {
+        if (
+          !bulk &&
+          query.adults + query.children > query.roomQuantity * room.maxGuests
+        )
+          continue;
+        const quote = bulk
+          ? bulk.get(room.id)
+          : await availabilityService.quoteSelection({
+              roomTypeId: room.id,
+              propertyId: property.id,
+              checkIn: query.checkIn,
+              checkOut: query.checkOut,
+              roomQuantity: query.roomQuantity,
+              adults: query.adults,
+              children: query.children,
+            });
+        if (!quote || (bulk && quote.roomType.property_id !== property.id))
+          continue;
+        if (filterUnavailable && !quote.available) continue;
+        roomTypes.push({
+          ...room,
+          ...(bulk ? roomTypeDto(quote.roomType) : {}),
+          available: quote.available,
+          bookableRooms: quote.bookableRooms,
+          nightly: quote.nightly,
+          price: {
+            subtotal: quote.subtotal,
+            discount: 0,
+            total: quote.subtotal,
+            currency: quote.roomType.currency,
+          },
+        });
+      }
+      if (roomTypes.length)
+        result.push({
+          ...property,
+          roomTypes,
+          startingPrice: Math.min(...roomTypes.map((room) => room.basePrice)),
+        });
+    }
+    return result;
+  }
+
+  const searchService = search
+    ? createSearchService({
+        ...search,
+        cache,
+        ttlSeconds: cacheTtl.search,
+        clock,
+        quoteCatalog,
+        sortProperties,
+        loadCatalog: async (ids, query) => {
+          const rows = await repository.findActiveByIds(ids);
+          const positions = new Map(ids.map((id, index) => [id, index]));
+          rows.sort((a, b) => positions.get(a.id) - positions.get(b.id));
+          return hydrate(rows, query);
+        },
+      })
+    : null;
+
   return {
     async list(query) {
+      if (searchService) return searchService.list(query);
+      if (query.lat !== undefined || query.cursor)
+        throw new AppError(
+          503,
+          "SEARCH_BACKEND_REQUIRED",
+          "Geo/cursor search cần backend Elasticsearch đã sẵn sàng.",
+        );
+      const deadline = Date.now() + 2000;
       const { page, limit, offset } = parsePagination(query);
-      const properties = await hydrate(await repository.list(query), query);
-      const sorted = sortProperties(properties, query.sort);
+      const discovery = normalizeDiscoveryQuery(query);
+      const catalog = await readCatalog({
+        kind: "search",
+        scope: "pg",
+        query: discovery,
+        ttlSeconds: cacheTtl.search,
+        load: async () => hydrate(await repository.list(discovery), discovery),
+      });
+      // Do not cache this step or paginate before availability filtering.
+      const properties = await quoteCatalog(catalog, query, true, { deadline });
+      const sorted = sortProperties(
+        properties,
+        query.sort,
+        Boolean(query.checkIn),
+      );
       return {
         data: sorted.slice(offset, offset + limit),
         meta: {
@@ -156,16 +273,33 @@ function createPropertyService({
     },
 
     async detail(propertyId, query) {
-      const property = await repository.findActiveById(propertyId);
-      if (!property)
-        throw new AppError(
-          404,
-          "PROPERTY_NOT_FOUND",
-          "Không tìm thấy property.",
-        );
-      const [result] = await hydrate([property], query, {
-        filterUnavailable: false,
+      const catalog = await readCatalog({
+        kind: "property",
+        scope: propertyId.toLowerCase(),
+        ttlSeconds: cacheTtl.property,
+        load: async () => {
+          const property = await repository.findActiveById(propertyId);
+          if (!property)
+            throw new AppError(
+              404,
+              "PROPERTY_NOT_FOUND",
+              "Không tìm thấy property.",
+            );
+          const items = await hydrate(
+            [property],
+            {},
+            { filterUnavailable: false },
+          );
+          if (!items.length)
+            throw new AppError(
+              404,
+              "PROPERTY_NOT_FOUND",
+              "Property không có loại phòng đang bán.",
+            );
+          return items;
+        },
       });
+      const [result] = await quoteCatalog(catalog, query, false);
       if (!result)
         throw new AppError(
           404,
